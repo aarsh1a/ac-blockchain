@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CryptoChain — Live Blockchain Visualizer</title>
+<meta name="description" content="Interactive blockchain visualizer demonstrating SHA-256 hashing, RSA-512 digital signatures, and Proof-of-Work consensus.">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:       #0f0f13;
+  --surface:  #17171e;
+  --card:     #1c1c26;
+  --border:   #2a2a38;
+  --accent:   #6c63ff;
+  --accent-dim: rgba(108, 99, 255, 0.12);
+  --green:    #34d399;
+  --green-dim: rgba(52, 211, 153, 0.10);
+  --red:      #f87171;
+  --red-dim:  rgba(248, 113, 113, 0.10);
+  --amber:    #fbbf24;
+  --amber-dim: rgba(251, 191, 36, 0.10);
+  --blue:     #60a5fa;
+  --text:     #e2e2ea;
+  --text-secondary: #9393a8;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Inter', -apple-system, sans-serif;
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── HEADER ─── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.logo-icon::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--accent);
+  border-radius: 2px;
+}
+
+.logo-text {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.tech-pills { display: flex; gap: 6px; margin-left: 16px; }
+
+.pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid rgba(108, 99, 255, 0.2);
+}
+
+.chain-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  transition: background 0.3s;
+}
+.status-dot.bad { background: var(--red); }
+
+.status-label { transition: color 0.3s; }
+.status-label.good { color: var(--green); }
+.status-label.bad  { color: var(--red); }
+
+/* ─── CONTROLS ─── */
+.controls {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ctrl-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.ctrl-input {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  width: 280px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.ctrl-input:focus { border-color: var(--accent); }
+.ctrl-input::placeholder { color: var(--text-secondary); opacity: 0.6; }
+
+.divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* Difficulty slider */
+.difficulty-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.difficulty-slider input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+.difficulty-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+
+.diff-value {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 14px;
+  text-align: center;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) { opacity: 0.85; }
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-outline:hover { border-color: var(--text-secondary); color: var(--text); }
+
+.btn-sm { padding: 4px 10px; font-size: 10px; border-radius: 4px; }
+
+.btn-danger {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+}
+.btn-danger:hover { background: rgba(248, 113, 113, 0.18); }
+
+.btn-warn {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+.btn-warn:hover { background: rgba(251, 191, 36, 0.18); }
+
+/* ─── CHAIN AREA ─── */
+.chain-area {
+  flex: 1;
+  padding: 32px 28px;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.chain-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  min-width: max-content;
+  padding-bottom: 8px;
+}
+
+/* ─── BLOCK CARD ─── */
+.block-card {
+  width: 260px;
+  background: var(--card);
+  border: 1px solid var(--green);
+  border-radius: 10px;
+  padding: 16px;
+  flex-shrink: 0;
+  transition: border-color 0.3s;
+}
+
+.block-card.invalid {
+  border-color: var(--red);
+}
+
+.block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.block-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.block-label.genesis {
+  background: var(--green-dim);
+  color: var(--green);
+}
+.block-label.normal {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.block-actions { display: flex; gap: 4px; }
+
+/* Fields */
+.field { margin-bottom: 10px; }
+
+.field-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.field-value {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.data-box {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 10px;
+  color: var(--text);
+  transition: all 0.3s;
+}
+.data-box.tampered {
+  color: var(--red);
+  border-color: rgba(248, 113, 113, 0.25);
+  background: var(--red-dim);
+}
+
+.hash-value { color: var(--blue); font-size: 10.5px; }
+.hash-value.bad { color: var(--red); }
+
+/* Tooltip */
+.tip { position: relative; cursor: default; }
+.tip:hover .tipbox { opacity: 1; visibility: visible; }
+.tipbox {
+  opacity: 0;
+  visibility: hidden;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  padding: 8px 10px;
+  border-radius: 5px;
+  z-index: 99;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  max-width: 340px;
+  word-break: break-all;
+  white-space: normal;
+  line-height: 1.5;
+}
+
+/* Meta row: nonce + sig + mining stats */
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  margin-top: 8px;
+  gap: 6px;
+}
+.meta-value { color: var(--amber); }
+
+.mining-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 9.5px;
+  font-family: var(--mono);
+  color: var(--text-secondary);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.mining-stats span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.stat-val { color: var(--accent); font-weight: 500; }
+
+/* Validity badges */
+.badge-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.badge {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 2px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  transition: all 0.3s;
+}
+
+.badge.pass {
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid rgba(52, 211, 153, 0.15);
+}
+.badge.fail {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid rgba(248, 113, 113, 0.15);
+}
+
+/* ─── ARROWS ─── */
+.arrow-connector {
+  display: flex;
+  align-items: center;
+  width: 36px;
+  flex-shrink: 0;
+  margin-top: 80px;
+  color: var(--green);
+  transition: color 0.3s;
+}
+.arrow-connector.broken { color: var(--red); }
+
+.arrow-line {
+  flex: 1;
+  height: 1.5px;
+  background: currentColor;
+  transition: background 0.3s;
+}
+.arrow-head {
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid currentColor;
+  flex-shrink: 0;
+}
+
+/* ─── MODAL ─── */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.overlay.show { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  width: 400px;
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.modal-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.modal-input {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--sans);
+  outline: none;
+  margin-bottom: 16px;
+  transition: border-color 0.2s;
+}
+.modal-input:focus { border-color: var(--accent); }
+
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ─── MINING OVERLAY ─── */
+.mine-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.mine-overlay.show { display: flex; }
+
+.mine-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 32px 48px;
+  text-align: center;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.mine-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.mine-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ─── KEY FOOTER ─── */
+.key-footer {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.key-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.key-val {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--accent);
+  opacity: 0.7;
+  word-break: break-all;
+  flex: 1;
+}
+
+/* Preset chips */
+.presets {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.preset-chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.preset-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent-dim);
+}
+.preset-chip.danger:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-dim);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { height: 4px; width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div style="display:flex;align-items:center">
+    <div class="logo">
+      <div class="logo-icon"></div>
+      <span class="logo-text">CryptoChain</span>
+    </div>
+    <div class="tech-pills">
+      <span class="pill">SHA-256</span>
+      <span class="pill">RSA-512</span>
+      <span class="pill">Proof-of-Work</span>
+    </div>
+  </div>
+  <div class="chain-status">
+    <div class="status-dot" id="sDot"></div>
+    <span class="status-label good" id="sText">CHAIN VALID</span>
+  </div>
+</header>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">Transaction</span>
+    <input class="ctrl-input" id="txInput" type="text" placeholder="or pick a preset below" />
+    <button class="btn btn-primary" id="addBtn" onclick="addBlock()">Mine Block</button>
+    <button class="btn btn-outline" onclick="resetChain()">Reset</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="ctrl-group difficulty-slider">
+    <span class="ctrl-label">Difficulty</span>
+    <input type="range" id="diffSlider" min="1" max="6" value="2" />
+    <span class="diff-value" id="diffDisplay">2</span>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="presets">
+    <span class="ctrl-label" style="margin-right:2px">Quick</span>
+    <span class="preset-chip" onclick="fillTx('Dave > Eve : 10 BTC')">Dave > Eve : 10 BTC</span>
+    <span class="preset-chip" onclick="fillTx('Eve > Frank : 3 BTC')">Eve > Frank : 3 BTC</span>
+    <span class="preset-chip" onclick="fillTx('Frank > Grace : 7 BTC')">Frank > Grace : 7 BTC</span>
+  </div>
+</div>
+
+<!-- CHAIN -->
+<div class="chain-area">
+  <div class="chain-row" id="chainRow">
+    <div style="color:var(--text-secondary);font-size:13px;padding:20px">Loading chain...</div>
+  </div>
+</div>
+
+<!-- KEY FOOTER -->
+<div class="key-footer">
+  <span class="key-label">RSA-512 Public Key</span>
+  <span class="key-val" id="pubKeyDisplay">generating...</span>
+</div>
+
+<!-- TAMPER MODAL -->
+<div class="overlay" id="tamperOverlay">
+  <div class="modal">
+    <div class="modal-title">Tamper Block <span id="tIdxLabel"></span></div>
+    <div class="modal-desc">
+      Replace the block's transaction data. The SHA-256 hash will <strong>not</strong> be
+      recomputed — this simulates a real-world attack. Watch the integrity badges break.
+    </div>
+    <div class="presets" style="margin-bottom: 12px">
+      <span class="preset-chip danger" onclick="fillTamper('HACKER > Attacker : 9999 BTC')">HACKER > Attacker : 9999 BTC</span>
+      <span class="preset-chip danger" onclick="fillTamper('FRAUD : Fake Transfer 500 BTC')">FRAUD : Fake Transfer 500 BTC</span>
+      <span class="preset-chip danger" onclick="fillTamper('STOLEN > Thief : 100 BTC')">STOLEN > Thief : 100 BTC</span>
+    </div>
+    <input class="modal-input" id="tamperInput" type="text" placeholder="or type custom data..." />
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeTamper()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmTamper()">Execute Tamper</button>
+    </div>
+  </div>
+</div>
+
+<!-- MINING OVERLAY -->
+<div class="mine-overlay" id="mineOverlay">
+  <div class="mine-box">
+    <div class="spinner"></div>
+    <div class="mine-title">Mining Block</div>
+    <div class="mine-sub" id="mineSub">Proof-of-Work · difficulty 2 · searching for valid nonce</div>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+let tamperIdx = null;
+let currentDifficulty = 2;
+
+/* ── Helpers ── */
+function trunc(h, head = 10, tail = 8) {
+  if (!h) return '—';
+  if (h === '0'.repeat(64)) return '0'.repeat(8) + '...' + '0'.repeat(8);
+  return h.slice(0, head) + '...' + h.slice(-tail);
+}
+
+function fillTx(val) {
+  document.getElementById('txInput').value = val;
+}
+
+function fillTamper(val) {
+  document.getElementById('tamperInput').value = val;
+}
+
+function showMining() {
+  document.getElementById('mineSub').textContent =
+    'Proof-of-Work · difficulty ' + currentDifficulty + ' · searching for valid nonce';
+  document.getElementById('mineOverlay').classList.add('show');
+}
+function hideMining() {
+  document.getElementById('mineOverlay').classList.remove('show');
+}
+
+/* ── Render ── */
+function renderChain(chain) {
+  const row = document.getElementById('chainRow');
+  row.innerHTML = '';
+
+  const allOk = chain.every(b => b.valid);
+  const dot = document.getElementById('sDot');
+  const txt = document.getElementById('sText');
+
+  if (allOk) {
+    dot.className = 'status-dot';
+    txt.className = 'status-label good';
+    txt.textContent = 'CHAIN VALID';
+  } else {
+    dot.className = 'status-dot bad';
+    txt.className = 'status-label bad';
+    txt.textContent = 'CHAIN COMPROMISED';
+  }
+
+  chain.forEach((b, i) => {
+    // Arrow connector
+    if (i > 0) {
+      const aw = document.createElement('div');
+      aw.className = 'arrow-connector' + (b.link_ok ? '' : ' broken');
+      aw.innerHTML = '<div class="arrow-line"></div><div class="arrow-head"></div>';
+      row.appendChild(aw);
+    }
+
+    // Block card
+    const sig = b.signature ? b.signature.slice(0, 14) + '...' : 'None';
+    const card = document.createElement('div');
+    card.className = 'block-card' + (b.valid ? '' : ' invalid');
+    card.id = 'blk-' + b.index;
+
+    // Mining stats row
+    let statsHtml = '';
+    if (b.mine_time_ms !== null && b.mine_time_ms !== undefined) {
+      statsHtml = `
+        <div class="mining-stats">
+          <span>time: <span class="stat-val">${b.mine_time_ms}ms</span></span>
+          <span>iterations: <span class="stat-val">${b.mine_iterations ? b.mine_iterations.toLocaleString() : '—'}</span></span>
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="block-header">
+        <span class="block-label ${b.index === 0 ? 'genesis' : 'normal'}">
+          ${b.index === 0 ? 'GENESIS' : 'BLOCK ' + b.index}
+        </span>
+        <div class="block-actions">
+          ${b.index > 0 ? '<button class="btn btn-sm btn-danger" onclick="openTamper(' + b.index + ')">Tamper</button>' : ''}
+          ${b.index > 0 && !b.valid ? '<button class="btn btn-sm btn-warn" onclick="remineBlock(' + b.index + ')">Remine</button>' : ''}
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">Transaction Data</div>
+        <div class="data-box ${!b.hash_ok ? 'tampered' : ''}">${b.data}</div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">SHA-256 Hash</div>
+        <div class="tip">
+          <div class="field-value hash-value ${!b.hash_ok ? 'bad' : ''}">${trunc(b.hash)}</div>
+          <div class="tipbox">${b.hash}</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">Previous Hash</div>
+        <div class="tip">
+          <div class="field-value hash-value">${trunc(b.prev_hash)}</div>
+          <div class="tipbox">${b.prev_hash}</div>
+        </div>
+      </div>
+
+      <div class="meta-row">
+        <span>nonce: <span class="meta-value">${b.nonce.toLocaleString()}</span></span>
+        <span style="color:${b.sig_ok ? 'var(--green)' : 'var(--red)'}">sig: ${sig}</span>
+      </div>
+
+      ${statsHtml}
+
+      <div class="badge-row">
+        <div class="badge ${b.hash_ok ? 'pass' : 'fail'}" title="SHA-256 hash matches block contents">
+          HASH ${b.hash_ok ? 'PASS' : 'FAIL'}
+        </div>
+        <div class="badge ${b.link_ok ? 'pass' : 'fail'}" title="prev_hash matches parent block hash">
+          LINK ${b.link_ok ? 'PASS' : 'FAIL'}
+        </div>
+        <div class="badge ${b.sig_ok ? 'pass' : 'fail'}" title="RSA-512 digital signature valid">
+          SIG ${b.sig_ok ? 'PASS' : 'FAIL'}
+        </div>
+      </div>
+    `;
+    row.appendChild(card);
+  });
+}
+
+/* ── API calls ── */
+async function loadChain() {
+  const res = await fetch('/api/chain');
+  const data = await res.json();
+  currentDifficulty = data.difficulty || 2;
+  document.getElementById('diffSlider').value = currentDifficulty;
+  document.getElementById('diffDisplay').textContent = currentDifficulty;
+  renderChain(data.chain);
+  const lines = data.pubkey.split('\n').filter(l => l && !l.startsWith('---'));
+  document.getElementById('pubKeyDisplay').textContent = lines.join('');
+}
+
+async function addBlock() {
+  const inp = document.getElementById('txInput');
+  const txt = inp.value.trim() || 'Anonymous Transaction';
+  document.getElementById('addBtn').disabled = true;
+  showMining();
+  await fetch('/api/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: txt })
+  });
+  hideMining();
+  inp.value = '';
+  document.getElementById('addBtn').disabled = false;
+  await loadChain();
+}
+
+function openTamper(idx) {
+  tamperIdx = idx;
+  document.getElementById('tIdxLabel').textContent = idx;
+  document.getElementById('tamperInput').value = '';
+  document.getElementById('tamperOverlay').classList.add('show');
+  setTimeout(() => document.getElementById('tamperInput').focus(), 80);
+}
+
+function closeTamper() {
+  document.getElementById('tamperOverlay').classList.remove('show');
+  tamperIdx = null;
+}
+
+async function confirmTamper() {
+  const val = document.getElementById('tamperInput').value.trim();
+  if (!val) return;
+  await fetch('/api/tamper/' + tamperIdx, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: val })
+  });
+  closeTamper();
+  await loadChain();
+}
+
+async function remineBlock(idx) {
+  showMining();
+  await fetch('/api/remine/' + idx, { method: 'POST' });
+  hideMining();
+  await loadChain();
+}
+
+async function resetChain() {
+  showMining();
+  await fetch('/api/reset', { method: 'POST' });
+  hideMining();
+  await loadChain();
+}
+
+async function changeDifficulty(val) {
+  currentDifficulty = parseInt(val);
+  document.getElementById('diffDisplay').textContent = val;
+  await fetch('/api/difficulty', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ difficulty: parseInt(val) })
+  });
+}
+
+/* ── Event listeners ── */
+document.getElementById('txInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addBlock();
+});
+document.getElementById('tamperInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmTamper();
+});
+document.getElementById('diffSlider').addEventListener('input', e => {
+  changeDifficulty(e.target.value);
+});
+
+/* ── Boot ── */
+loadChain();
+</script>
+</body>
+</html>
